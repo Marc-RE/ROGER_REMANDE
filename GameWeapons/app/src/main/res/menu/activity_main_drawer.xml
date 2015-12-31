@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:id="@+id/nav_group">
+        <item
+            android:id="@+id/nav_refresh"
+            android:icon="@drawable/ic_action_reload"
+            android:title="Display/Refresh weapons" />
+    </group>
+    <item android:title="Connect">
+        <item
+            android:id="@+id/nav_signup"
+            android:icon="@drawable/ic_action_key"
+            android:title="Sign up" />
+        <item
+            android:id="@+id/nav_signin"
+            android:icon="@drawable/ic_account_circle"
+            android:title="Sign in" />
+    </item>
+</menu>
