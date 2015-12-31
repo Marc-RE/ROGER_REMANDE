@@ -22,8 +22,8 @@
             android:padding="8dp" >
 
             <ImageView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
                 android:id="@+id/weapon_photo"
                 android:layout_alignParentLeft="true"
                 android:layout_alignParentTop="true"
@@ -49,6 +49,7 @@
                 android:layout_height="wrap_content"
                 android:textColor="#444444"
                 android:id="@+id/weapon_vg"
+                android:layout_marginTop="16dp"
                 android:layout_toRightOf="@+id/weapon_photo"
                 android:layout_below="@+id/weapon_price" />
 

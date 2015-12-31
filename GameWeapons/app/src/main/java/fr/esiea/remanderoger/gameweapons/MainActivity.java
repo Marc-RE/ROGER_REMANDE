@@ -5,7 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -35,15 +38,23 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     RecyclerView rv;
+    MediaPlayer mp;
+
     final RecyclerView.LayoutManager layoutManager =
             new LinearLayoutManager(this, LinearLayoutManager.VERTICAL, false);
 
@@ -65,11 +76,14 @@ public class MainActivity extends AppCompatActivity
         rv.setLayoutManager(layoutManager);
         rv.setAdapter(new WeaponsAdapter(getWeaponsFromFile()));
 
+        Snackbar.make(rv, "Click on any weapon to play its sound", Snackbar.LENGTH_LONG)
+                .setAction("Action", null).show();
+
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Add feature not yet implemented, coming soon !", Snackbar.LENGTH_LONG)
+                Snackbar.make(view, "Add feature not yet implemented, please use WebAPP :-)", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();
             }
         });
@@ -95,23 +109,11 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
-
-    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
 
         return super.onOptionsItemSelected(item);
     }
@@ -193,11 +195,55 @@ public class MainActivity extends AppCompatActivity
         }
 
         @Override
-        public void onBindViewHolder(WeaponsAdapter.WeaponHolder holder, int position) {
+        public void onBindViewHolder(WeaponsAdapter.WeaponHolder holder, final int position) {
             try {
+                try {
+                    new SoundsDownloader().execute(weapons.getJSONObject(position).getString("sound"),
+                            String.valueOf(position));
+                    MainActivity.this.mp = MediaPlayer.create(MainActivity.this,
+                            Uri.parse(getCacheDir().getAbsolutePath()+"/"+String.valueOf(position)+".wav"));
+                } catch(JSONException e) {
+                    e.printStackTrace();
+                }
                 holder.weaponName.setText(weapons.getJSONObject(position).getString("name"));
                 holder.weaponPrice.setText("$" + String.valueOf(weapons.getJSONObject(position).getInt("price")));
                 holder.weaponVG.setText(weapons.getJSONObject(position).getString("video_game"));
+                holder.cvWeapons.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        try {
+                            MainActivity.this.mp = MediaPlayer.create(MainActivity.this,
+                                    Uri.parse(getCacheDir().getAbsolutePath()+"/"+String.valueOf(position)+".wav"));
+                            if(mp == null)
+                            {
+                                Snackbar.make(v, weapons.getJSONObject(position).getString("name") +
+                                        " sound not yet downloaded/available, please check your connectivity or update via WebAPP", Snackbar.LENGTH_LONG)
+                                        .setAction("Action", null).show();
+                            }
+                            else {
+                                mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+
+                                    @Override
+                                    public void onCompletion(MediaPlayer mp) {
+                                        // TODO Auto-generated method stub
+                                        if(MainActivity.this.mp == null) {
+                                            Snackbar.make(MainActivity.this.rv, "Wow such fast, many clicks", Snackbar.LENGTH_LONG)
+                                                    .setAction("Action", null).show();
+                                        } else {
+                                            MainActivity.this.mp.reset();
+                                            MainActivity.this.mp.release();
+                                            MainActivity.this.mp = null;
+                                        }
+                                    }
+
+                                });
+                                mp.start();
+                            }
+                        } catch(JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
                 new ImagesDownloader(holder.weaponPhoto).execute(weapons.getJSONObject(position).getString("image"));
             } catch(JSONException e) {
                 e.printStackTrace();
@@ -228,6 +274,53 @@ public class MainActivity extends AppCompatActivity
                 weaponPrice = (TextView)itemView.findViewById(R.id.weapon_price);
                 weaponPhoto = (ImageView)itemView.findViewById(R.id.weapon_photo);
                 weaponVG = (TextView)itemView.findViewById(R.id.weapon_vg);
+            }
+        }
+    }
+
+    public class SoundsDownloader extends AsyncTask<String, String, String> {
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected String doInBackground(String... f_url) {
+            int id = 0;
+            try {
+                URL url = new URL(f_url[0]);
+                id = Integer.parseInt(f_url[1]);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.connect();
+                if(HttpURLConnection.HTTP_OK == connection.getResponseCode()) {
+                    copyInputStreamToFile(connection.getInputStream(),
+                            new File(getCacheDir(), String.valueOf(id) + ".wav"));
+                }
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch(IOException e) {
+                e.printStackTrace();
+            }
+
+            return String.valueOf(id) + ".wav";
+        }
+
+        private void copyInputStreamToFile(InputStream in, File file) {
+            try {
+                OutputStream out = new FileOutputStream(file);
+                byte[] buffer = new byte[4096];
+                int len;
+                while((len = in.read(buffer))>0) {
+                    out.write(buffer, 0, len);
+                }
+                out.close();
+                in.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }

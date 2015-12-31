@@ -71,6 +71,7 @@ public class GetWeaponsService extends IntentService {
             if(HttpURLConnection.HTTP_OK == connection.getResponseCode()) {
                 copyInputStreamToFile(connection.getInputStream(),
                         new File(getCacheDir(), "weapons.json"));
+                Log.d(ACTION_WEAPONS, getCacheDir().getAbsolutePath());
                 Log.d(ACTION_WEAPONS, "weapons.json downloaded :-)");
                 LocalBroadcastManager.getInstance(this).
                         sendBroadcast(new Intent(MainActivity.WEAPONS_UPDATE));
